@@ -116,17 +116,29 @@
     <div class="hint" id="verdict"></div>
   </div>
 
-  <!-- 入力表 -->
+  <!-- 支出入力表 -->
   <div class="card">
     <h2>③ 現在の支出を入力（円）</h2>
     <div id="tableRoot"></div>
   </div>
 
-  <!-- 合計 -->
+  <!-- 支出合計 -->
   <div class="card total-card">
     <div class="total-row"><span class="l">理想の支出合計</span><span class="r" id="tIdeal">¥0</span></div>
     <div class="total-row"><span class="l">現在の支出合計</span><span class="r" id="tSpend">¥0</span></div>
     <div class="total-row big"><span class="l">理想との差額</span><span class="r" id="tDiff">¥0</span></div>
+  </div>
+
+  <!-- 貯蓄入力 -->
+  <div class="card">
+    <h2>④ 毎月の貯蓄を入力（円）</h2>
+    <div id="savingRoot"></div>
+    <div class="summary" style="margin-top:12px;">
+      <div class="box"><div class="t">現在の貯蓄</div><div class="v" id="sSpendBox">¥0</div></div>
+      <div class="box"><div class="t">理想の貯蓄</div><div class="v" id="sIdealBox">¥0</div></div>
+      <div class="box"><div class="t">理想の貯蓄との差</div><div class="v" id="sDiffBox">¥0</div></div>
+    </div>
+    <div class="hint" id="saveVerdict"></div>
   </div>
 
   <!-- グラフ -->
@@ -227,6 +239,8 @@ const RATIOS = {
     }},
 };
 const REGIONS = { city:'都心（大都市）', rural:'地方' };
+const EXP_GROUPS = GROUPS.filter(g=>g.key!=='save');
+const SAVE_GROUP = GROUPS.find(g=>g.key==='save');
 
 /* ===== 状態 ===== */
 const STORE_KEY = 'kakei_v1';
@@ -252,6 +266,8 @@ function ratioOf(k){ return RATIOS[state.family].region[state.region][k] ?? 0; }
 function idealAmt(k){ return state.income * ratioOf(k)/100; }
 function spendOf(k){ return Number(state.spend[k]||0); }
 function parseNum(s){ return Number(String(s).replace(/[^0-9.]/g,''))||0; }
+/* 差額の符号: 支出は「理想-実績」(使わないほどプラス)。貯蓄は「実績-理想」(多く貯めるほどプラス)。 */
+function favDiff(k, groupKey){ return groupKey==='save' ? (spendOf(k)-idealAmt(k)) : (idealAmt(k)-spendOf(k)); }
 
 /* ===== セレクタ描画 ===== */
 function renderSelectors(){
@@ -274,38 +290,38 @@ function renderSelectors(){
 }
 
 /* ===== テーブル描画 ===== */
-function renderTable(){
-  const root=document.getElementById('tableRoot'); root.innerHTML='';
-  GROUPS.forEach(g=>{
-    const gh=document.createElement('div'); gh.className='grp-head '+g.cls; gh.textContent=g.label;
-    root.appendChild(gh);
-    const head=document.createElement('div'); head.className='row head';
-    head.innerHTML='<div class="name">費目</div><div class="ideal">理想額</div><div>現在の支出</div><div class="diff">差額</div>';
-    root.appendChild(head);
+function renderGroup(root, g, diffLabel){
+  const gh=document.createElement('div'); gh.className='grp-head '+g.cls; gh.textContent=g.label;
+  root.appendChild(gh);
+  const head=document.createElement('div'); head.className='row head';
+  const spendLabel = g.key==='save' ? '現在の貯蓄' : '現在の支出';
+  head.innerHTML=`<div class="name">費目</div><div class="ideal">理想額</div><div>${spendLabel}</div><div class="diff">${diffLabel}</div>`;
+  root.appendChild(head);
 
-    let sIdeal=0,sSpend=0;
-    g.items.forEach(it=>{
-      const ia=idealAmt(it.k), sp=spendOf(it.k), diff=ia-sp;
-      sIdeal+=ia; sSpend+=sp;
-      const row=document.createElement('div'); row.className='row';
-      const r=ratioOf(it.k);
-      const incPct = state.income? (sp/state.income*100):0;
-      const cls = diff>=0?'pos':'neg';
-      row.innerHTML =
-        `<div class="name">${it.name}</div>`+
-        `<div class="ideal">${yen(ia)}<small>${r}%</small></div>`+
-        `<div><input class="spend" inputmode="numeric" data-k="${it.k}" value="${sp?sp.toLocaleString('ja-JP'):''}" placeholder="0"></div>`+
-        `<div class="diff ${cls}" data-diff="${it.k}">${diff>=0?'+':'−'}${yen(Math.abs(diff)).slice(1)}<small>${incPct?incPct.toFixed(1)+'%':''}</small></div>`;
-      root.appendChild(row);
-    });
-
-    const st=document.createElement('div'); st.className='subtotal';
-    const sdiff=sIdeal-sSpend;
-    st.innerHTML=`<div>小計</div><div class="ideal">${yen(sIdeal)}</div><div class="spendcol" data-subspend="${g.key}">${yen(sSpend)}</div>`+
-      `<div class="diff ${sdiff>=0?'pos':'neg'}" data-subdiff="${g.key}">${sdiff>=0?'+':'−'}${yen(Math.abs(sdiff)).slice(1)}</div>`;
-    root.appendChild(st);
+  let sIdeal=0,sSpend=0;
+  g.items.forEach(it=>{
+    const ia=idealAmt(it.k), sp=spendOf(it.k), diff=favDiff(it.k, g.key);
+    sIdeal+=ia; sSpend+=sp;
+    const row=document.createElement('div'); row.className='row';
+    const r=ratioOf(it.k);
+    const incPct = state.income? (sp/state.income*100):0;
+    const cls = diff>=0?'pos':'neg';
+    row.innerHTML =
+      `<div class="name">${it.name}</div>`+
+      `<div class="ideal">${yen(ia)}<small>${r}%</small></div>`+
+      `<div><input class="spend" inputmode="numeric" data-k="${it.k}" value="${sp?sp.toLocaleString('ja-JP'):''}" placeholder="0"></div>`+
+      `<div class="diff ${cls}" data-diff="${it.k}">${diff>=0?'+':'−'}${yen(Math.abs(diff)).slice(1)}<small>${incPct?incPct.toFixed(1)+'%':''}</small></div>`;
+    root.appendChild(row);
   });
 
+  const st=document.createElement('div'); st.className='subtotal';
+  const sdiff = g.key==='save' ? (sSpend-sIdeal) : (sIdeal-sSpend);
+  st.innerHTML=`<div>小計</div><div class="ideal">${yen(sIdeal)}</div><div class="spendcol" data-subspend="${g.key}">${yen(sSpend)}</div>`+
+    `<div class="diff ${sdiff>=0?'pos':'neg'}" data-subdiff="${g.key}">${sdiff>=0?'+':'−'}${yen(Math.abs(sdiff)).slice(1)}</div>`;
+  root.appendChild(st);
+}
+
+function bindSpendInputs(root){
   root.querySelectorAll('input.spend').forEach(inp=>{
     inp.addEventListener('input',e=>{
       const k=e.target.dataset.k; const v=parseNum(e.target.value);
@@ -316,12 +332,24 @@ function renderTable(){
   });
 }
 
+function renderTable(){
+  const root=document.getElementById('tableRoot'); root.innerHTML='';
+  EXP_GROUPS.forEach(g=>renderGroup(root, g, '差額'));
+  bindSpendInputs(root);
+}
+
+function renderSaving(){
+  const root=document.getElementById('savingRoot'); root.innerHTML='';
+  renderGroup(root, SAVE_GROUP, '理想の貯蓄との差');
+  bindSpendInputs(root);
+}
+
 /* 入力中に表の差額・小計・サマリー・グラフを再計算（入力欄は作り直さない） */
 function refreshComputed(){
   GROUPS.forEach(g=>{
     let sIdeal=0,sSpend=0;
     g.items.forEach(it=>{
-      const ia=idealAmt(it.k), sp=spendOf(it.k), diff=ia-sp;
+      const ia=idealAmt(it.k), sp=spendOf(it.k), diff=favDiff(it.k, g.key);
       sIdeal+=ia; sSpend+=sp;
       const cell=document.querySelector(`[data-diff="${it.k}"]`);
       if(cell){
@@ -330,7 +358,7 @@ function refreshComputed(){
         cell.innerHTML=`${diff>=0?'+':'−'}${yen(Math.abs(diff)).slice(1)}<small>${incPct?incPct.toFixed(1)+'%':''}</small>`;
       }
     });
-    const sd=sIdeal-sSpend;
+    const sd = g.key==='save' ? (sSpend-sIdeal) : (sIdeal-sSpend);
     const sc=document.querySelector(`[data-subspend="${g.key}"]`);
     const dc=document.querySelector(`[data-subdiff="${g.key}"]`);
     if(sc) sc.textContent=yen(sSpend);
@@ -342,8 +370,13 @@ function refreshComputed(){
 /* ===== サマリー ===== */
 function totals(){
   let ideal=0,spend=0;
-  allItems().forEach(it=>{ ideal+=idealAmt(it.k); spend+=spendOf(it.k); });
+  allItems().filter(it=>it.group!=='save').forEach(it=>{ ideal+=idealAmt(it.k); spend+=spendOf(it.k); });
   return {ideal,spend,diff:ideal-spend};
+}
+function savingTotals(){
+  let ideal=0,spend=0;
+  allItems().filter(it=>it.group==='save').forEach(it=>{ ideal+=idealAmt(it.k); spend+=spendOf(it.k); });
+  return {ideal,spend,diff:spend-ideal}; // 多く貯めるほどプラス
 }
 function updateSummary(){
   const t=totals();
@@ -358,20 +391,35 @@ function updateSummary(){
   td.textContent=(t.diff>=0?'+':'−')+yen(Math.abs(t.diff)).slice(1);
   td.className='r '+(t.diff>=0?'pos':'neg');
 
-  // verdict: 使いすぎ上位
-  const over=allItems().map(it=>({name:it.name,diff:idealAmt(it.k)-spendOf(it.k)}))
+  // 貯蓄サマリー
+  const s=savingTotals();
+  document.getElementById('sSpendBox').textContent=yen(s.spend);
+  document.getElementById('sIdealBox').textContent=yen(s.ideal);
+  const sdb=document.getElementById('sDiffBox');
+  sdb.textContent=(s.diff>=0?'+':'−')+yen(Math.abs(s.diff)).slice(1);
+  sdb.className='v '+(s.diff>=0?'pos':'neg');
+  const sv=document.getElementById('saveVerdict');
+  if(s.spend===0){ sv.textContent='毎月の貯蓄額を入力すると診断が表示されます。'; }
+  else if(s.diff>=0){ sv.innerHTML=`✅ 理想の貯蓄を <b>${yen(s.diff)}</b> 上回っています。順調です！`; }
+  else { sv.innerHTML=`💰 貯蓄が理想より <b>${yen(Math.abs(s.diff))}</b> 少なめです。`; }
+
+  // verdict: 使いすぎ上位（貯蓄は対象外）
+  const over=allItems().filter(it=>it.group!=='save')
+    .map(it=>({name:it.name,diff:idealAmt(it.k)-spendOf(it.k)}))
     .filter(x=>x.diff<0).sort((a,b)=>a.diff-b.diff).slice(0,3);
   const v=document.getElementById('verdict');
   if(t.spend===0){ v.textContent='現在の支出を入力すると診断が表示されます。'; return; }
-  if(over.length===0){ v.innerHTML='✅ どの費目も理想の範囲内です。素晴らしい家計です！'; return; }
-  v.innerHTML='⚠️ 使いすぎている費目: '+over.map(o=>`<b>${o.name.replace(/^\S+\s?/,'')}</b>（${yen(Math.abs(o.diff))}超）`).join(' / ');
+  let msg='';
+  if(over.length===0){ msg='✅ どの費目も理想の範囲内です。素晴らしい家計です！'; }
+  else { msg='⚠️ 使いすぎている費目: '+over.map(o=>`<b>${o.name.replace(/^\S+\s?/,'')}</b>（${yen(Math.abs(o.diff))}超）`).join(' / '); }
+  v.innerHTML=msg;
 }
 
 /* ===== グラフ ===== */
 let chart, chartMode='diff-fixed';
 function diffData(groupKey){
   const items=GROUPS.find(g=>g.key===groupKey).items;
-  return items.map(it=>({name:it.name.replace(/^\S+\s?/,''), v:idealAmt(it.k)-spendOf(it.k)}));
+  return items.map(it=>({name:it.name.replace(/^\S+\s?/,''), v:favDiff(it.k, groupKey)}));
 }
 function buildConfig(){
   if(chartMode==='compare'){
@@ -416,7 +464,7 @@ function updateChart(){
 /* ===== イベント ===== */
 document.getElementById('income').addEventListener('input',e=>{
   const v=parseNum(e.target.value); state.income=v; saveState();
-  renderTable(); updateSummary(); updateChart();
+  renderTable(); renderSaving(); updateSummary(); updateChart();
 });
 document.getElementById('income').addEventListener('blur',e=>{
   e.target.value=state.income?Number(state.income).toLocaleString('ja-JP'):'';
@@ -432,7 +480,7 @@ document.getElementById('resetBtn').addEventListener('click',()=>{
   state.spend={}; saveState(); renderAll();
 });
 
-function renderAll(){ renderSelectors(); renderTable(); updateSummary(); updateChart(); }
+function renderAll(){ renderSelectors(); renderTable(); renderSaving(); updateSummary(); updateChart(); }
 renderAll();
 </script>
 </body>
