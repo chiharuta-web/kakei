@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#2563eb">
+<title>理想の家計算出アプリ</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --blue:#2563eb; --red:#ef4444; --green:#16a34a;
+    --fixed:#d6e9f5; --hen:#fde2e4; --save:#d8f3e8;
+    --line:#e5e7eb; --ink:#1f2937; --muted:#6b7280; --bg:#f4f6f9;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 24px) env(safe-area-inset-left);
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:14px;}
+  h1{font-size:20px;margin:6px 0 14px;display:flex;align-items:center;gap:8px;}
+  h1 .badge{font-size:11px;background:var(--blue);color:#fff;padding:2px 8px;border-radius:999px;font-weight:600;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);}
+  .card h2{font-size:14px;margin:0 0 10px;color:var(--muted);font-weight:700;letter-spacing:.03em;}
+
+  /* selectors */
+  .seg-label{font-size:12px;color:var(--muted);margin:10px 0 6px;font-weight:600;}
+  .seg{display:flex;flex-wrap:wrap;gap:8px;}
+  .seg button{
+    flex:1 1 auto;min-width:calc(50% - 4px);border:1.5px solid var(--line);background:#fff;color:var(--ink);
+    padding:10px 8px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;
+  }
+  .seg button.active{border-color:var(--blue);background:var(--blue);color:#fff;}
+  .region .seg button{min-width:calc(50% - 4px);}
+
+  /* income */
+  .income-row{display:flex;align-items:center;gap:10px;background:#fffbe6;border:1.5px solid #f3e3a3;border-radius:10px;padding:10px 12px;}
+  .income-row label{font-size:13px;font-weight:700;white-space:nowrap;}
+  .income-row input{flex:1;border:none;background:transparent;font-size:22px;font-weight:700;text-align:right;color:var(--ink);outline:none;min-width:0;}
+  .income-row .yen{font-size:14px;color:var(--muted);}
+
+  /* summary */
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .summary .box{background:var(--bg);border-radius:10px;padding:10px;text-align:center;}
+  .summary .box .t{font-size:11px;color:var(--muted);}
+  .summary .box .v{font-size:18px;font-weight:700;margin-top:2px;}
+  .pos{color:var(--blue);} .neg{color:var(--red);}
+
+  /* table */
+  .grp-head{font-size:13px;font-weight:700;padding:8px 10px;border-radius:8px;margin:14px 0 6px;}
+  .grp-fixed{background:var(--fixed);} .grp-hen{background:var(--hen);} .grp-save{background:var(--save);}
+  .row{display:grid;grid-template-columns:1.5fr 1fr 1.2fr 1fr;gap:6px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line);}
+  .row.head{font-size:11px;color:var(--muted);font-weight:700;border-bottom:1.5px solid var(--line);position:sticky;}
+  .row .name{font-size:13px;display:flex;align-items:center;gap:5px;}
+  .row .ideal{font-size:13px;text-align:right;color:var(--muted);}
+  .row .ideal small{display:block;font-size:10px;}
+  .row input.spend{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:7px 8px;font-size:14px;text-align:right;outline:none;}
+  .row input.spend:focus{border-color:var(--blue);}
+  .row .diff{font-size:13px;text-align:right;font-weight:700;}
+  .row .diff small{display:block;font-size:10px;font-weight:500;}
+  .subtotal{display:grid;grid-template-columns:1.5fr 1fr 1.2fr 1fr;gap:6px;padding:8px 4px;font-weight:700;font-size:13px;background:#fafbfc;border-radius:0 0 8px 8px;}
+  .subtotal .ideal,.subtotal .diff{text-align:right;}
+  .subtotal .spendcol{text-align:right;font-size:13px;padding-right:8px;}
+
+  .total-card{background:#1f2937;color:#fff;border:none;}
+  .total-card .total-row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;}
+  .total-card .total-row .l{font-size:13px;opacity:.85;}
+  .total-card .total-row .r{font-size:18px;font-weight:700;}
+  .total-card .big{border-top:1px solid rgba(255,255,255,.2);margin-top:8px;padding-top:10px;}
+  .total-card .big .r{font-size:24px;}
+
+  .chart-box{position:relative;height:230px;margin-top:6px;}
+  .chart-tab{display:flex;gap:6px;margin-bottom:8px;}
+  .chart-tab button{flex:1;border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:7px;font-size:12px;font-weight:600;cursor:pointer;}
+  .chart-tab button.active{border-color:var(--blue);background:var(--blue);color:#fff;}
+
+  .hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6;}
+  .reset{display:block;width:100%;margin-top:6px;padding:11px;border:1.5px solid var(--red);color:var(--red);background:#fff;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;}
+  .saved-tag{font-size:11px;color:var(--green);text-align:center;height:14px;margin-top:4px;}
+  @media(max-width:430px){
+    .row{grid-template-columns:1.3fr .9fr 1.1fr .9fr;}
+    .row .name{font-size:12px;}
+    h1{font-size:18px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>理想の家計算出アプリ <span class="badge">スマホ対応</span></h1>
+
+  <!-- 設定 -->
+  <div class="card">
+    <h2>① あなたに合った条件を選んでください</h2>
+    <div class="seg-label">家族構成</div>
+    <div class="seg" id="familySeg"></div>
+    <div class="seg-label">お住まいのエリア</div>
+    <div class="seg region" id="regionSeg"></div>
+
+    <div class="seg-label" style="margin-top:14px;">② 手取り月収（世帯）</div>
+    <div class="income-row">
+      <label>手取り月収</label>
+      <input id="income" type="text" inputmode="numeric" placeholder="505,000">
+      <span class="yen">円</span>
+    </div>
+  </div>
+
+  <!-- サマリー -->
+  <div class="card">
+    <h2>今の家計の診断</h2>
+    <div class="summary">
+      <div class="box"><div class="t">支出合計</div><div class="v" id="sumSpend">¥0</div></div>
+      <div class="box"><div class="t">理想の支出</div><div class="v" id="sumIdeal">¥0</div></div>
+      <div class="box"><div class="t">理想との差</div><div class="v" id="sumDiff">¥0</div></div>
+    </div>
+    <div class="hint" id="verdict"></div>
+  </div>
+
+  <!-- 入力表 -->
+  <div class="card">
+    <h2>③ 現在の支出を入力（円）</h2>
+    <div id="tableRoot"></div>
+  </div>
+
+  <!-- 合計 -->
+  <div class="card total-card">
+    <div class="total-row"><span class="l">理想の支出合計</span><span class="r" id="tIdeal">¥0</span></div>
+    <div class="total-row"><span class="l">現在の支出合計</span><span class="r" id="tSpend">¥0</span></div>
+    <div class="total-row big"><span class="l">理想との差額</span><span class="r" id="tDiff">¥0</span></div>
+  </div>
+
+  <!-- グラフ -->
+  <div class="card">
+    <h2>グラフで見る</h2>
+    <div class="chart-tab" id="chartTab">
+      <button data-c="diff-fixed" class="active">差額(固定費)</button>
+      <button data-c="diff-hen">差額(変動費)</button>
+      <button data-c="diff-save">差額(貯蓄)</button>
+      <button data-c="compare">理想vs現在</button>
+    </div>
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+    <div class="hint">青(プラス)=理想より使っていない／赤(マイナス)=理想より使いすぎ。バーが赤く大きい費目が見直しポイントです。</div>
+  </div>
+
+  <button class="reset" id="resetBtn">入力した支出をリセット</button>
+  <div class="saved-tag" id="savedTag"></div>
+
+  <div class="card" style="margin-top:14px;">
+    <h2>理想割合の根拠について</h2>
+    <div class="hint">
+      理想割合は、ファイナンシャルプランナーが用いる「家計の黄金比」と総務省「家計調査(2024年)」の地域差を参考に、家族構成・エリア別に作成した目安です。<br>
+      ・都心は住居費が高く、車に頼らないため交通費を低めに設定。<br>
+      ・地方は住居費を抑えられる一方、交通・自動車費が高めです。<br>
+      あくまで目安のため、ご家庭の事情に合わせて調整してください。
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 費目定義（画像と同じ並び） ===== */
+const GROUPS = [
+  { key:'fixed', label:'固定費', cls:'grp-fixed',
+    items:[
+      {k:'house', name:'🏠 住居費'},
+      {k:'utility', name:'💡 水道光熱費'},
+      {k:'comm', name:'📱 通信費'},
+      {k:'insurance', name:'💚 保険料'},
+    ]},
+  { key:'hen', label:'変動費', cls:'grp-hen',
+    items:[
+      {k:'food', name:'🍚 食費'},
+      {k:'car', name:'🚗 交通・自動車費'},
+      {k:'daily', name:'🧴 生活日用品費'},
+      {k:'medical', name:'💊 医療費'},
+      {k:'edu', name:'📚 教育費'},
+      {k:'eatout', name:'🍔 外食費'},
+      {k:'cloth', name:'👠 被服・美容費'},
+      {k:'social', name:'🍶 交際費'},
+      {k:'luxury', name:'🚬 嗜好品費'},
+      {k:'hobby', name:'⚽ 趣味・小遣い'},
+      {k:'other', name:'🧾 その他費用'},
+    ]},
+  { key:'save', label:'貯蓄・投資', cls:'grp-save',
+    items:[
+      {k:'saving', name:'🏦 預貯金'},
+    ]},
+];
+
+/* ===== 理想割合(%) 家族構成 × エリア =====
+   各パターン合計100%。地方/夫婦+子2人は添付画像の値をそのまま採用。 */
+const RATIOS = {
+  single: {
+    label:'単身世帯',
+    region:{
+      city:{house:28,utility:5,comm:5,insurance:3, food:12,car:2,daily:2.5,medical:1.5,edu:0,eatout:7,cloth:4,social:3.5,luxury:2,hobby:6.5,other:2.5, saving:15.5},
+      rural:{house:22,utility:5,comm:5,insurance:3, food:13,car:4,daily:2.5,medical:1.5,edu:0,eatout:7,cloth:4,social:3.5,luxury:2,hobby:7,other:2.5, saving:18},
+    }},
+  couple: {
+    label:'夫婦のみ',
+    region:{
+      city:{house:27,utility:5,comm:5,insurance:4, food:13,car:3,daily:3,medical:2,edu:0,eatout:6,cloth:3,social:3,luxury:2,hobby:4,other:3, saving:17},
+      rural:{house:22,utility:5,comm:5,insurance:4, food:14,car:6,daily:3,medical:2,edu:0,eatout:5,cloth:3,social:3,luxury:2,hobby:5,other:3, saving:18},
+    }},
+  child1: {
+    label:'夫婦+子ども1人',
+    region:{
+      city:{house:28,utility:5,comm:5.5,insurance:5, food:13.5,car:3,daily:3,medical:3,edu:7,eatout:3.5,cloth:3,social:2,luxury:1.5,hobby:3.5,other:2, saving:11.5},
+      rural:{house:23,utility:5,comm:5.5,insurance:5, food:14,car:6,daily:3,medical:3,edu:6,eatout:4,cloth:3.5,social:2,luxury:1.5,hobby:4.5,other:2, saving:12},
+    }},
+  child2: {
+    label:'夫婦+子ども2人',
+    region:{
+      city:{house:28,utility:5,comm:5.5,insurance:5.5, food:12.5,car:3,daily:3,medical:4,edu:6,eatout:3.5,cloth:3.5,social:2,luxury:1.5,hobby:3.5,other:2, saving:11.5},
+      rural:{house:23.5,utility:5,comm:5.5,insurance:5.5, food:13,car:6,daily:3,medical:4,edu:4,eatout:4.5,cloth:4,social:2,luxury:1.5,hobby:5.5,other:2, saving:11},
+    }},
+  child3: {
+    label:'夫婦+子ども3人',
+    region:{
+      city:{house:28,utility:5.5,comm:6,insurance:6, food:14,car:3,daily:3.5,medical:4,edu:8,eatout:3,cloth:3,social:1.5,luxury:1,hobby:2.5,other:2, saving:9},
+      rural:{house:23.5,utility:5.5,comm:6,insurance:6, food:14.5,car:6,daily:3.5,medical:4,edu:6,eatout:3.5,cloth:3.5,social:1.5,luxury:1,hobby:4,other:2, saving:9.5},
+    }},
+  child4: {
+    label:'夫婦+子ども4人',
+    region:{
+      city:{house:28,utility:6,comm:6,insurance:6, food:15.5,car:3,daily:4,medical:4,edu:8.5,eatout:2.5,cloth:2.5,social:1.5,luxury:1,hobby:2,other:2, saving:7.5},
+      rural:{house:24,utility:6,comm:6,insurance:6, food:16,car:6,daily:4,medical:4,edu:6.5,eatout:3,cloth:3,social:1.5,luxury:1,hobby:3.5,other:2, saving:7.5},
+    }},
+};
+const REGIONS = { city:'都心（大都市）', rural:'地方' };
+
+/* ===== 状態 ===== */
+const STORE_KEY = 'kakei_v1';
+let state = loadState();
+
+function defaultState(){
+  return { family:'child2', region:'rural', income:505000, spend:{
+    house:146543, utility:30000, comm:24064, insurance:11758,
+    food:91866, car:80895, daily:7748, medical:4000, edu:34286,
+    eatout:16978, cloth:47600, social:0, luxury:0, hobby:0, other:180431,
+    saving:0
+  } };
+}
+function loadState(){
+  try{ const s = JSON.parse(localStorage.getItem(STORE_KEY)); if(s&&s.spend) return Object.assign(defaultState(), s);}catch(e){}
+  return defaultState();
+}
+function saveState(){
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  const tag=document.getElementById('savedTag'); tag.textContent='✓ 自動保存しました';
+  clearTimeout(saveState._t); saveState._t=setTimeout(()=>tag.textContent='',1500);
+}
+
+/* ===== ユーティリティ ===== */
+const yen = n => '¥' + Math.round(n).toLocaleString('ja-JP');
+const allItems = () => GROUPS.flatMap(g=>g.items.map(i=>({...i,group:g.key})));
+function ratioOf(k){ return RATIOS[state.family].region[state.region][k] ?? 0; }
+function idealAmt(k){ return state.income * ratioOf(k)/100; }
+function spendOf(k){ return Number(state.spend[k]||0); }
+function parseNum(s){ return Number(String(s).replace(/[^0-9.]/g,''))||0; }
+
+/* ===== セレクタ描画 ===== */
+function renderSelectors(){
+  const fam=document.getElementById('familySeg'); fam.innerHTML='';
+  Object.entries(RATIOS).forEach(([k,v])=>{
+    const b=document.createElement('button'); b.textContent=v.label;
+    if(k===state.family) b.classList.add('active');
+    b.onclick=()=>{ state.family=k; saveState(); renderAll(); };
+    fam.appendChild(b);
+  });
+  const reg=document.getElementById('regionSeg'); reg.innerHTML='';
+  Object.entries(REGIONS).forEach(([k,label])=>{
+    const b=document.createElement('button'); b.textContent=label;
+    if(k===state.region) b.classList.add('active');
+    b.onclick=()=>{ state.region=k; saveState(); renderAll(); };
+    reg.appendChild(b);
+  });
+  const inc=document.getElementById('income');
+  inc.value = state.income? Number(state.income).toLocaleString('ja-JP') : '';
+}
+
+/* ===== テーブル描画 ===== */
+function renderTable(){
+  const root=document.getElementById('tableRoot'); root.innerHTML='';
+  GROUPS.forEach(g=>{
+    const gh=document.createElement('div'); gh.className='grp-head '+g.cls; gh.textContent=g.label;
+    root.appendChild(gh);
+    const head=document.createElement('div'); head.className='row head';
+    head.innerHTML='<div class="name">費目</div><div class="ideal">理想額</div><div>現在の支出</div><div class="diff">差額</div>';
+    root.appendChild(head);
+
+    let sIdeal=0,sSpend=0;
+    g.items.forEach(it=>{
+      const ia=idealAmt(it.k), sp=spendOf(it.k), diff=ia-sp;
+      sIdeal+=ia; sSpend+=sp;
+      const row=document.createElement('div'); row.className='row';
+      const r=ratioOf(it.k);
+      const incPct = state.income? (sp/state.income*100):0;
+      const cls = diff>=0?'pos':'neg';
+      row.innerHTML =
+        `<div class="name">${it.name}</div>`+
+        `<div class="ideal">${yen(ia)}<small>${r}%</small></div>`+
+        `<div><input class="spend" inputmode="numeric" data-k="${it.k}" value="${sp?sp.toLocaleString('ja-JP'):''}" placeholder="0"></div>`+
+        `<div class="diff ${cls}" data-diff="${it.k}">${diff>=0?'+':'−'}${yen(Math.abs(diff)).slice(1)}<small>${incPct?incPct.toFixed(1)+'%':''}</small></div>`;
+      root.appendChild(row);
+    });
+
+    const st=document.createElement('div'); st.className='subtotal';
+    const sdiff=sIdeal-sSpend;
+    st.innerHTML=`<div>小計</div><div class="ideal">${yen(sIdeal)}</div><div class="spendcol" data-subspend="${g.key}">${yen(sSpend)}</div>`+
+      `<div class="diff ${sdiff>=0?'pos':'neg'}" data-subdiff="${g.key}">${sdiff>=0?'+':'−'}${yen(Math.abs(sdiff)).slice(1)}</div>`;
+    root.appendChild(st);
+  });
+
+  root.querySelectorAll('input.spend').forEach(inp=>{
+    inp.addEventListener('input',e=>{
+      const k=e.target.dataset.k; const v=parseNum(e.target.value);
+      state.spend[k]=v; saveState();
+      refreshComputed();
+    });
+    inp.addEventListener('blur',e=>{ const v=parseNum(e.target.value); e.target.value=v?v.toLocaleString('ja-JP'):''; });
+  });
+}
+
+/* 入力中に表の差額・小計・サマリー・グラフを再計算（入力欄は作り直さない） */
+function refreshComputed(){
+  GROUPS.forEach(g=>{
+    let sIdeal=0,sSpend=0;
+    g.items.forEach(it=>{
+      const ia=idealAmt(it.k), sp=spendOf(it.k), diff=ia-sp;
+      sIdeal+=ia; sSpend+=sp;
+      const cell=document.querySelector(`[data-diff="${it.k}"]`);
+      if(cell){
+        const incPct=state.income?(sp/state.income*100):0;
+        cell.className='diff '+(diff>=0?'pos':'neg');
+        cell.innerHTML=`${diff>=0?'+':'−'}${yen(Math.abs(diff)).slice(1)}<small>${incPct?incPct.toFixed(1)+'%':''}</small>`;
+      }
+    });
+    const sd=sIdeal-sSpend;
+    const sc=document.querySelector(`[data-subspend="${g.key}"]`);
+    const dc=document.querySelector(`[data-subdiff="${g.key}"]`);
+    if(sc) sc.textContent=yen(sSpend);
+    if(dc){ dc.className='diff '+(sd>=0?'pos':'neg'); dc.textContent=(sd>=0?'+':'−')+yen(Math.abs(sd)).slice(1); }
+  });
+  updateSummary(); updateChart();
+}
+
+/* ===== サマリー ===== */
+function totals(){
+  let ideal=0,spend=0;
+  allItems().forEach(it=>{ ideal+=idealAmt(it.k); spend+=spendOf(it.k); });
+  return {ideal,spend,diff:ideal-spend};
+}
+function updateSummary(){
+  const t=totals();
+  document.getElementById('sumSpend').textContent=yen(t.spend);
+  document.getElementById('sumIdeal').textContent=yen(t.ideal);
+  const sd=document.getElementById('sumDiff');
+  sd.textContent=(t.diff>=0?'+':'−')+yen(Math.abs(t.diff)).slice(1);
+  sd.className='v '+(t.diff>=0?'pos':'neg');
+  document.getElementById('tIdeal').textContent=yen(t.ideal);
+  document.getElementById('tSpend').textContent=yen(t.spend);
+  const td=document.getElementById('tDiff');
+  td.textContent=(t.diff>=0?'+':'−')+yen(Math.abs(t.diff)).slice(1);
+  td.className='r '+(t.diff>=0?'pos':'neg');
+
+  // verdict: 使いすぎ上位
+  const over=allItems().map(it=>({name:it.name,diff:idealAmt(it.k)-spendOf(it.k)}))
+    .filter(x=>x.diff<0).sort((a,b)=>a.diff-b.diff).slice(0,3);
+  const v=document.getElementById('verdict');
+  if(t.spend===0){ v.textContent='現在の支出を入力すると診断が表示されます。'; return; }
+  if(over.length===0){ v.innerHTML='✅ どの費目も理想の範囲内です。素晴らしい家計です！'; return; }
+  v.innerHTML='⚠️ 使いすぎている費目: '+over.map(o=>`<b>${o.name.replace(/^\S+\s?/,'')}</b>（${yen(Math.abs(o.diff))}超）`).join(' / ');
+}
+
+/* ===== グラフ ===== */
+let chart, chartMode='diff-fixed';
+function diffData(groupKey){
+  const items=GROUPS.find(g=>g.key===groupKey).items;
+  return items.map(it=>({name:it.name.replace(/^\S+\s?/,''), v:idealAmt(it.k)-spendOf(it.k)}));
+}
+function buildConfig(){
+  if(chartMode==='compare'){
+    const its=allItems();
+    return {
+      type:'bar',
+      data:{ labels:its.map(i=>i.name.replace(/^\S+\s?/,'')),
+        datasets:[
+          {label:'理想', data:its.map(i=>Math.round(idealAmt(i.k))), backgroundColor:'#93c5fd'},
+          {label:'現在', data:its.map(i=>spendOf(i.k)), backgroundColor:'#fca5a5'},
+        ]},
+      options:baseOpts(true)
+    };
+  }
+  const gk=chartMode.split('-')[1];
+  const d=diffData(gk);
+  return {
+    type:'bar',
+    data:{ labels:d.map(x=>x.name),
+      datasets:[{ label:'理想との差額', data:d.map(x=>Math.round(x.v)),
+        backgroundColor:d.map(x=>x.v>=0?'#2563eb':'#ef4444') }]},
+    options:baseOpts(false)
+  };
+}
+function baseOpts(stacked){
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:chartMode==='compare', labels:{boxWidth:12,font:{size:11}}},
+      tooltip:{callbacks:{label:c=>c.dataset.label+': '+yen(c.parsed.y)}}},
+    scales:{
+      x:{ticks:{font:{size:10},maxRotation:60,minRotation:0}},
+      y:{ticks:{font:{size:10},callback:v=>(v/10000)+'万'}}
+    }
+  };
+}
+function updateChart(){
+  const cfg=buildConfig();
+  if(chart){ chart.data=cfg.data; chart.options=cfg.options; chart.config.type=cfg.type; chart.update(); }
+  else { chart=new Chart(document.getElementById('chart'), cfg); }
+}
+
+/* ===== イベント ===== */
+document.getElementById('income').addEventListener('input',e=>{
+  const v=parseNum(e.target.value); state.income=v; saveState();
+  renderTable(); updateSummary(); updateChart();
+});
+document.getElementById('income').addEventListener('blur',e=>{
+  e.target.value=state.income?Number(state.income).toLocaleString('ja-JP'):'';
+});
+document.getElementById('chartTab').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  chartMode=b.dataset.c;
+  document.querySelectorAll('#chartTab button').forEach(x=>x.classList.toggle('active',x===b));
+  updateChart();
+});
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  if(!confirm('入力した支出をすべてリセットしますか？')) return;
+  state.spend={}; saveState(); renderAll();
+});
+
+function renderAll(){ renderSelectors(); renderTable(); updateSummary(); updateChart(); }
+renderAll();
+</script>
+</body>
+</html>
