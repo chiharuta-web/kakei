@@ -100,7 +100,7 @@
     <div class="seg-label" style="margin-top:14px;">② 手取り月収（世帯）</div>
     <div class="income-row">
       <label>手取り月収</label>
-      <input id="income" type="text" inputmode="numeric" placeholder="505,000">
+      <input id="income" type="text" inputmode="numeric" placeholder="ここに入力">
       <span class="yen">円</span>
     </div>
   </div>
@@ -233,7 +233,7 @@ const STORE_KEY = 'kakei_v1';
 let state = loadState();
 
 function defaultState(){
-  return { family:'child2', region:'rural', income:0, spend:{} };
+  return { family:'single', region:'rural', income:0, spend:{} };
 }
 function loadState(){
   try{ const s = JSON.parse(localStorage.getItem(STORE_KEY)); if(s&&s.spend) return Object.assign(defaultState(), s);}catch(e){}
