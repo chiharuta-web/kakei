@@ -233,12 +233,7 @@ const STORE_KEY = 'kakei_v1';
 let state = loadState();
 
 function defaultState(){
-  return { family:'child2', region:'rural', income:505000, spend:{
-    house:146543, utility:30000, comm:24064, insurance:11758,
-    food:91866, car:80895, daily:7748, medical:4000, edu:34286,
-    eatout:16978, cloth:47600, social:0, luxury:0, hobby:0, other:180431,
-    saving:0
-  } };
+  return { family:'child2', region:'rural', income:0, spend:{} };
 }
 function loadState(){
   try{ const s = JSON.parse(localStorage.getItem(STORE_KEY)); if(s&&s.spend) return Object.assign(defaultState(), s);}catch(e){}
